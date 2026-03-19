@@ -14,6 +14,7 @@ RSpec.describe PaymentProviders::Ecpay::Customers::BindCardService do
   let(:response) { instance_double(Net::HTTPOK) }
   let(:endpoint) { "#{payment_provider.ecpg_base_url}/Merchant/GetTokenbyBindingCard" }
 
+  let(:token_value) { "abc123def456" }
   let(:token_url) { "https://ecpg-stage.ecpay.com.tw/Merchant/BindingCard?token=abc123" }
 
   let(:ecpay_success_response) do
@@ -21,6 +22,7 @@ RSpec.describe PaymentProviders::Ecpay::Customers::BindCardService do
       {
         "RtnCode" => 1,
         "RtnMsg" => "Success",
+        "Token" => token_value,
         "TokenURL" => token_url
       }.to_json,
       payment_provider.hash_key,
@@ -61,12 +63,14 @@ RSpec.describe PaymentProviders::Ecpay::Customers::BindCardService do
         allow(response).to receive(:body).and_return(ecpay_success_response.to_json)
       end
 
-      it "returns success with token_url" do
+      it "returns success with token and token_url" do
         result = service.call
 
         expect(result).to be_success
+        expect(result.token).to eq(token_value)
         expect(result.token_url).to eq(token_url)
         expect(result.merchant_member_id).to eq("M-cust_abc")
+        expect(result.merchant_trade_no).to start_with("BND")
       end
 
       it "updates ecpay_customer with merchant_member_id" do

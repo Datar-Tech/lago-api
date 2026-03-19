@@ -12,7 +12,29 @@ class EcpayCardBindingsController < ApplicationController
 
     return head(:bad_request) unless result.success?
 
-    render json: {token_url: result.token_url}
+    render json: {
+      token: result.token,
+      token_url: result.token_url,
+      merchant_member_id: result.merchant_member_id,
+      merchant_trade_no: result.merchant_trade_no
+    }
+  end
+
+  # POST /ecpay/card_bindings/:organization_id/create_bind_card
+  def create_bind_card
+    result = PaymentProviders::Ecpay::Customers::CreateBindCardService.call(
+      payment_provider: ecpay_provider,
+      bind_card_pay_token: params[:bind_card_pay_token],
+      merchant_member_id: params[:merchant_member_id]
+    )
+
+    return render json: {success: false, error: result.error&.message}, status: :bad_request unless result.success?
+
+    render json: {
+      success: true,
+      data: result.data,
+      three_d_url: result.three_d_url
+    }
   end
 
   # POST /ecpay/card_bindings/:organization_id/callback

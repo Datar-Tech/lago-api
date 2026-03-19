@@ -53,8 +53,10 @@ module PaymentProviders
 
           return result.service_failure!(code: "bind_card_error", message: parsed[:rtn_msg]) unless parsed[:success]
 
+          result.token = parsed[:data]["Token"]
           result.token_url = parsed[:data]["TokenURL"]
           result.merchant_member_id = merchant_member_id
+          result.merchant_trade_no = data[:OrderInfo][:MerchantTradeNo]
           result
         rescue LagoHttpClient::HttpError => e
           result.third_party_failure!(third_party: "ECPay", error_code: e.error_code, error_message: e.error_body)

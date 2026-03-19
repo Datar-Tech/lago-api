@@ -200,6 +200,7 @@ Rails.application.routes.draw do
 
   # ECPay card binding
   post "ecpay/card_bindings/:organization_id", to: "ecpay_card_bindings#create"
+  post "ecpay/card_bindings/:organization_id/create_bind_card", to: "ecpay_card_bindings#create_bind_card"
   post "ecpay/card_bindings/:organization_id/callback", to: "ecpay_card_bindings#callback"
 
   namespace :admin do

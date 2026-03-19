@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECPay E2E 綁卡測試</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; padding: 2rem; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { margin-bottom: 1rem; color: #333; }
+    .card { background: #fff; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #555; }
+    label { display: block; margin-bottom: .3rem; font-weight: 600; font-size: .9rem; }
+    input[type="text"] { width: 100%; padding: .5rem; border: 1px solid #ccc; border-radius: 4px; margin-bottom: .8rem; font-size: .9rem; }
+    button { padding: .6rem 1.2rem; border: none; border-radius: 4px; cursor: pointer; font-size: .9rem; margin-right: .5rem; margin-bottom: .5rem; }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-success:hover { background: #15803d; }
+    .btn-warning { background: #d97706; color: #fff; }
+    .btn-warning:hover { background: #b45309; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #log { background: #1e1e1e; color: #0f0; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: .8rem; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+    .status { padding: .3rem .6rem; border-radius: 12px; font-size: .8rem; display: inline-block; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-done { background: #d1fae5; color: #065f46; }
+    .status-error { background: #fee2e2; color: #991b1b; }
+    .step { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+    .result-url { display: none; padding: 1rem; margin-top: 1rem; background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; }
+    .result-url.show { display: block; }
+    .result-url.error { background: #fef2f2; border-color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ECPay ECPG E2E 綁卡測試</h1>
+
+    <!-- Config -->
+    <div class="card">
+      <h2>1. 設定</h2>
+      <label>Organization ID</label>
+      <input type="text" id="orgId" placeholder="從 rake ecpay:setup_e2e 取得">
+      <label>Customer External ID</label>
+      <input type="text" id="customerId" value="e2e_test_customer">
+      <label>API Base URL</label>
+      <input type="text" id="apiBase" value="">
+      <button class="btn-primary" onclick="initBindCard()">取得 Token (Step 1)</button>
+    </div>
+
+    <!-- Step Status -->
+    <div class="card">
+      <h2>2. 綁卡流程</h2>
+      <div class="step">
+        <span class="status status-pending" id="s1">待執行</span>
+        <span>Step 1: GetTokenbyBindingCard → 取得 Token</span>
+      </div>
+      <div class="step">
+        <span class="status status-pending" id="s2">待執行</span>
+        <span>Step 2: ECPay SDK 渲染卡片表單</span>
+      </div>
+      <div class="step">
+        <span class="status status-pending" id="s3">待執行</span>
+        <span>Step 3: 取得 BindCardPayToken</span>
+      </div>
+      <div class="step">
+        <span class="status status-pending" id="s4">待執行</span>
+        <span>Step 4: CreateBindCard → 建立綁卡交易</span>
+      </div>
+      <div class="step">
+        <span class="status status-pending" id="s5">待執行</span>
+        <span>Step 5: 3D 驗證 (如需要)</span>
+      </div>
+      <div class="step">
+        <span class="status status-pending" id="s6">待執行</span>
+        <span>Step 6: Callback → ConfirmBindService</span>
+      </div>
+    </div>
+
+    <!-- ECPay SDK Card Form -->
+    <div class="card">
+      <h2>3. 信用卡表單 (ECPay SDK)</h2>
+      <div id="ECPayPayment" style="min-height: 100px; border: 1px dashed #ccc; padding: 1rem; text-align: center; color: #999;">
+        等待 Token 載入...
+      </div>
+      <div style="margin-top: 1rem;">
+        <button class="btn-success" id="btnGetPayToken" onclick="getBindCardPayToken()" disabled>取得 BindCardPayToken (Step 3)</button>
+        <button class="btn-warning" id="btnCreateBind" onclick="createBindCard()" disabled>建立綁卡交易 (Step 4)</button>
+        <button class="btn-danger" id="btnThreeD" onclick="goThreeD()" disabled>前往 3D 驗證 (Step 5)</button>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="card result-url" id="resultCard">
+      <h2>結果</h2>
+      <div id="resultText"></div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <h2>Log</h2>
+      <div id="log"></div>
+    </div>
+
+    <!-- Test Info -->
+    <div class="card">
+      <h2>測試資訊</h2>
+      <p><strong>測試卡號：</strong>4311-9522-2222-2222</p>
+      <p><strong>安全碼：</strong>222</p>
+      <p><strong>有效期限：</strong>任意未來日期</p>
+      <p><strong>3D 驗證碼 (SMS)：</strong>1234</p>
+      <p><strong>持卡人姓名：</strong>2 字元以上（如 Test）</p>
+    </div>
+  </div>
+
+  <!-- ECPay JS SDK -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/node-forge@0.7.0/dist/forge.min.js"></script>
+  <script src="https://ecpg-stage.ecpay.com.tw/Scripts/sdk-1.0.0.js?t=20210121100116"></script>
+
+  <script>
+    // State
+    let _token = '';
+    let _bindCardPayToken = '';
+    let _threeDURL = '';
+    let _merchantMemberId = '';
+    let _merchantTradeNo = '';
+
+    // Auto-detect base URL
+    document.getElementById('apiBase').value = window.location.origin;
+
+    // Check URL params for result
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('result') === 'success') {
+      showResult('綁卡成功！請執行 rake ecpay:status 確認 card_id 已儲存。', false);
+    } else if (urlParams.get('result') === 'failure') {
+      showResult('綁卡失敗。請檢查 log。', true);
+    }
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      el.textContent += `[${time}] ${msg}\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function setStatus(step, status, text) {
+      const el = document.getElementById('s' + step);
+      el.className = 'status status-' + status;
+      el.textContent = text;
+    }
+
+    function showResult(msg, isError) {
+      const card = document.getElementById('resultCard');
+      card.classList.add('show');
+      if (isError) card.classList.add('error');
+      else card.classList.remove('error');
+      document.getElementById('resultText').textContent = msg;
+    }
+
+    // Step 1: Get Token
+    async function initBindCard() {
+      const orgId = document.getElementById('orgId').value.trim();
+      const customerId = document.getElementById('customerId').value.trim();
+      const apiBase = document.getElementById('apiBase').value.trim();
+
+      if (!orgId) { alert('請輸入 Organization ID'); return; }
+      if (!customerId) { alert('請輸入 Customer External ID'); return; }
+
+      log(`Step 1: POST ${apiBase}/ecpay/card_bindings/${orgId}`);
+      setStatus(1, 'pending', '執行中...');
+
+      try {
+        const resp = await fetch(`${apiBase}/ecpay/card_bindings/${orgId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ external_customer_id: customerId })
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text();
+          log(`ERROR: HTTP ${resp.status} - ${text}`);
+          setStatus(1, 'error', '失敗');
+          return;
+        }
+
+        const data = await resp.json();
+        log(`Token: ${data.token}`);
+        log(`TokenURL: ${data.token_url}`);
+        log(`MerchantMemberID: ${data.merchant_member_id}`);
+        log(`MerchantTradeNo: ${data.merchant_trade_no}`);
+
+        _token = data.token;
+        _merchantMemberId = data.merchant_member_id;
+        _merchantTradeNo = data.merchant_trade_no;
+        setStatus(1, 'done', '完成');
+
+        // Step 2: Initialize ECPay SDK
+        initECPaySDK();
+      } catch (err) {
+        log(`ERROR: ${err.message}`);
+        setStatus(1, 'error', '失敗');
+      }
+    }
+
+    // Step 2: Init SDK and render card form
+    function initECPaySDK() {
+      log('Step 2: Initializing ECPay SDK (Stage)...');
+      setStatus(2, 'pending', '執行中...');
+
+      try {
+        ECPay.initialize('Stage', 1, function(errMsg) {
+          try {
+            ECPay.addBindingCard(_token, 'zh-TW', function(errMsg) {
+              if (errMsg != null) {
+                log(`SDK Error: ${errMsg}`);
+                setStatus(2, 'error', '失敗');
+                return;
+              }
+            });
+            log('SDK initialized, card form rendered');
+            setStatus(2, 'done', '完成');
+            document.getElementById('btnGetPayToken').disabled = false;
+          } catch (err) {
+            log(`SDK init error: ${err.message}`);
+            setStatus(2, 'error', '失敗');
+          }
+        });
+      } catch (err) {
+        log(`SDK error: ${err.message}`);
+        setStatus(2, 'error', '失敗');
+      }
+    }
+
+    // Step 3: Get BindCardPayToken
+    function getBindCardPayToken() {
+      log('Step 3: Getting BindCardPayToken...');
+      setStatus(3, 'pending', '執行中...');
+
+      try {
+        ECPay.getBindCardPayToken(function(result, errMsg) {
+          if (errMsg != null) {
+            log(`Error: ${errMsg}`);
+            setStatus(3, 'error', '失敗');
+            return;
+          }
+
+          _bindCardPayToken = result.BindCardPayToken;
+          log(`BindCardPayToken: ${_bindCardPayToken}`);
+          setStatus(3, 'done', '完成');
+          document.getElementById('btnCreateBind').disabled = false;
+        });
+      } catch (err) {
+        log(`Error: ${err.message}`);
+        setStatus(3, 'error', '失敗');
+      }
+    }
+
+    // Step 4: Create Bind Card
+    async function createBindCard() {
+      const orgId = document.getElementById('orgId').value.trim();
+      const apiBase = document.getElementById('apiBase').value.trim();
+
+      log(`Step 4: POST ${apiBase}/ecpay/card_bindings/${orgId}/create_bind_card`);
+      setStatus(4, 'pending', '執行中...');
+
+      try {
+        const resp = await fetch(`${apiBase}/ecpay/card_bindings/${orgId}/create_bind_card`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bind_card_pay_token: _bindCardPayToken,
+            merchant_member_id: _merchantMemberId
+          })
+        });
+
+        const data = await resp.json();
+        log(`Response: ${JSON.stringify(data, null, 2)}`);
+
+        if (!data.success) {
+          log(`ERROR: ${data.error}`);
+          setStatus(4, 'error', '失敗');
+          return;
+        }
+
+        setStatus(4, 'done', '完成');
+
+        if (data.three_d_url && data.three_d_url.length > 0) {
+          _threeDURL = data.three_d_url;
+          log(`3D URL: ${_threeDURL}`);
+          setStatus(5, 'pending', '需要 3D 驗證');
+          document.getElementById('btnThreeD').disabled = false;
+        } else {
+          log('No 3D verification needed');
+          setStatus(5, 'done', '不需要');
+          setStatus(6, 'pending', '等待 callback...');
+          showResult('綁卡交易已建立，等待 ECPay callback...', false);
+        }
+      } catch (err) {
+        log(`ERROR: ${err.message}`);
+        setStatus(4, 'error', '失敗');
+      }
+    }
+
+    // Step 5: Go to 3D verification
+    function goThreeD() {
+      if (_threeDURL) {
+        log(`Step 5: Redirecting to 3D verification: ${_threeDURL}`);
+        setStatus(5, 'pending', '驗證中...');
+        window.open(_threeDURL, '_blank');
+      } else {
+        log('No 3D URL available');
+      }
+    }
+  </script>
+</body>
+</html>
