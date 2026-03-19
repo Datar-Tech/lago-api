@@ -328,6 +328,54 @@ RSpec.describe WebhooksController do
     end
   end
 
+  describe "POST /ecpay" do
+    let(:organization) { create(:organization) }
+    let(:ecpay_provider) { create(:ecpay_provider, organization:) }
+    let(:body) { {RtnCode: 1, Data: "encrypted"}.to_json }
+    let(:result) { BaseService::Result.new }
+
+    before do
+      ecpay_provider
+
+      allow(PaymentProviders::Ecpay::HandleIncomingWebhookService).to receive(:call)
+        .with(
+          organization_id: organization.id,
+          code: nil,
+          body:
+        )
+        .and_return(result)
+    end
+
+    it "handles ecpay webhooks and returns 1|OK" do
+      post(
+        "/webhooks/ecpay/#{organization.id}",
+        params: body,
+        headers: {"Content-Type" => "application/json"}
+      )
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to eq("1|OK")
+      expect(PaymentProviders::Ecpay::HandleIncomingWebhookService).to have_received(:call)
+    end
+
+    context "when failing to handle ecpay event" do
+      let(:result) do
+        BaseService::Result.new.service_failure!(code: "webhook_error", message: "Invalid payload")
+      end
+
+      it "returns bad request" do
+        post(
+          "/webhooks/ecpay/#{organization.id}",
+          params: body,
+          headers: {"Content-Type" => "application/json"}
+        )
+
+        expect(response).to have_http_status(:bad_request)
+        expect(PaymentProviders::Ecpay::HandleIncomingWebhookService).to have_received(:call)
+      end
+    end
+  end
+
   describe "POST /flutterwave" do
     let(:organization) { create(:organization) }
 

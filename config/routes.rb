@@ -195,7 +195,12 @@ Rails.application.routes.draw do
     post "gocardless/:organization_id", to: "webhooks#gocardless", on: :collection, as: :gocardless
     post "adyen/:organization_id", to: "webhooks#adyen", on: :collection, as: :adyen
     post "moneyhash/:organization_id", to: "webhooks#moneyhash", on: :collection, as: :moneyhash
+    post "ecpay/:organization_id", to: "webhooks#ecpay", on: :collection, as: :ecpay
   end
+
+  # ECPay card binding
+  post "ecpay/card_bindings/:organization_id", to: "ecpay_card_bindings#create"
+  post "ecpay/card_bindings/:organization_id/callback", to: "ecpay_card_bindings#callback"
 
   namespace :admin do
     resources :memberships, only: %i[create]

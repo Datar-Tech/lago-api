@@ -94,6 +94,24 @@ class WebhooksController < ApplicationController
     params["notificationItems"]&.first&.dig("NotificationRequestItem")&.permit!
   end
 
+  def ecpay
+    result = PaymentProviders::Ecpay::HandleIncomingWebhookService.call(
+      organization_id: params[:organization_id],
+      code: params[:code].presence,
+      body: request.body.read
+    )
+
+    unless result.success?
+      if result.error.is_a?(BaseService::ServiceFailure) && result.error.code == "webhook_error"
+        return head(:bad_request)
+      end
+
+      result.raise_if_error!
+    end
+
+    render plain: "1|OK", status: :ok
+  end
+
   def moneyhash
     result = InboundWebhooks::CreateService.call(
       organization_id: params[:organization_id],

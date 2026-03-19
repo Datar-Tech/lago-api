@@ -18,6 +18,8 @@ module PaymentProviders
         PaymentProviders::Stripe::Payments::CreateService
       when :moneyhash
         PaymentProviders::Moneyhash::Payments::CreateService
+      when :ecpay
+        PaymentProviders::Ecpay::Payments::CreateService
       end
     end
   end
