@@ -101,6 +101,28 @@ FactoryBot.define do
       flow_id { SecureRandom.uuid[0..19] }
     end
   end
+  factory :ecpay_provider, class: "PaymentProviders::EcpayProvider" do
+    organization
+    type { "PaymentProviders::EcpayProvider" }
+    code { "ecpay_account_#{SecureRandom.uuid}" }
+    name { "ECPay Account 1" }
+
+    secrets do
+      {hash_key:, hash_iv:}.to_json
+    end
+
+    settings do
+      {merchant_id:, sandbox:}
+    end
+
+    transient do
+      merchant_id { "3002607" }
+      hash_key { "pwFHCqoQZGmho4w6" }
+      hash_iv { "EkRm7iFT261dpevs" }
+      sandbox { true }
+    end
+  end
+
   factory :flutterwave_provider, class: "PaymentProviders::FlutterwaveProvider" do
     organization
     type { "PaymentProviders::FlutterwaveProvider" }
