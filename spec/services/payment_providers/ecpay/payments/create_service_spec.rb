@@ -106,7 +106,7 @@ RSpec.describe PaymentProviders::Ecpay::Payments::CreateService do
         expect(lago_client).to have_received(:post_with_response) do |body, headers|
           data_json = Lago::EcpayAes.decrypt(body[:Data], ecpay_provider.hash_key, ecpay_provider.hash_iv)
           data = JSON.parse(data_json)
-          expect(data["CardInfo"]["BindCardID"]).to eq("BIND123456")
+          expect(data["BindCardID"]).to eq("BIND123456")
           expect(data["OrderInfo"]["TotalAmount"]).to be_a(Integer)
           expect(data["OrderInfo"]["MerchantTradeNo"]).to start_with("INV")
           expect(headers["Content-Type"]).to eq("application/json")
