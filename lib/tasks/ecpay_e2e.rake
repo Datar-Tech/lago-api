@@ -33,12 +33,14 @@ namespace :ecpay do
     puts "  EcpayProvider: #{provider.id} (sandbox=#{provider.sandbox?})"
 
     # 4. Create test customer
+    billing_entity = org.default_billing_entity || BillingEntity.find_by!(organization: org)
     customer = Customer.find_or_initialize_by(organization: org, external_id: "e2e_test_customer")
     customer.name = "E2E Test Customer"
     customer.email = "e2e@test.com"
     customer.currency = "TWD"
     customer.payment_provider = "ecpay"
     customer.payment_provider_code = provider.code
+    customer.billing_entity = billing_entity
     customer.save!
     puts "  Customer: #{customer.id} (external_id: #{customer.external_id})"
 
@@ -63,7 +65,7 @@ namespace :ecpay do
   task verify_connection: :environment do
     puts "=== ECPay Sandbox Connectivity Test ==="
 
-    provider = PaymentProviders::EcpayProvider.find_by(sandbox: "true")
+    provider = PaymentProviders::EcpayProvider.find_by(code: "ecpay_sandbox")
     unless provider
       puts "  ERROR: No sandbox EcpayProvider found. Run `rake ecpay:setup_e2e` first."
       exit 1
@@ -76,57 +78,23 @@ namespace :ecpay do
     end
 
     puts "  Provider: #{provider.merchant_id} (sandbox)"
-    puts "  Endpoint: #{provider.ecpg_base_url}/Merchant/GetTokenbyBindingCard"
-    puts "  Calling ECPay API..."
+    puts "  Calling BindCardService..."
 
-    data = {
-      MerchantID: provider.merchant_id,
-      MerchantMemberID: "M-#{customer.external_id.first(8)}",
-      OrderInfo: {
-        MerchantTradeNo: "TST#{Time.now.strftime('%Y%m%d%H%M%S%3N')}"[0, 20],
-        MerchantTradeDate: Time.now.in_time_zone("Taipei").strftime("%Y/%m/%d %H:%M:%S"),
-        TotalAmount: 0,
-        ReturnURL: ENV.fetch("ECPAY_ORDER_RESULT_URL_BASE", "https://example.com/ecpay/card_bindings") + "/#{provider.organization_id}/callback",
-        TradeDesc: "Connectivity Test"
-      },
-      CardInfo: {},
-      ConsumerInfo: {
-        MerchantMemberID: "M-#{customer.external_id.first(8)}",
-        Email: customer.email,
-        Phone: ""
-      }
-    }
-
-    request_body = Lago::EcpayAes.build_request(
-      provider.merchant_id, data,
-      provider.hash_key, provider.hash_iv
+    result = PaymentProviders::Ecpay::Customers::BindCardService.call(
+      customer: customer,
+      payment_provider: provider
     )
 
-    uri = URI("#{provider.ecpg_base_url}/Merchant/GetTokenbyBindingCard")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = 30
-    http.read_timeout = 30
-
-    req = Net::HTTP::Post.new(uri.path, {"Content-Type" => "application/json"})
-    req.body = request_body.to_json
-
-    response = http.request(req)
-    puts "  HTTP Status: #{response.code}"
-
-    parsed = Lago::EcpayAes.parse_response(
-      JSON.parse(response.body),
-      provider.hash_key, provider.hash_iv
-    )
-
-    if parsed[:success]
-      puts "  SUCCESS! TransCode=1, RtnCode=1"
-      puts "  TokenURL: #{parsed[:data]['TokenURL']}"
+    if result.success?
+      puts "  SUCCESS!"
+      puts "  Token: #{result.token}"
+      puts "  TokenURL: #{result.token_url}"
+      puts "  MerchantMemberID: #{result.merchant_member_id}"
+      puts "  MerchantTradeNo: #{result.merchant_trade_no}"
       puts ""
-      puts "  ✓ ECPay sandbox connectivity verified!"
+      puts "  ECPay sandbox connectivity verified!"
     else
-      puts "  FAILED: #{parsed[:error] || parsed[:rtn_msg]}"
-      puts "  Response: #{parsed.inspect}"
+      puts "  FAILED: #{result.error&.message || result.error&.code}"
     end
   end
 
@@ -134,7 +102,7 @@ namespace :ecpay do
   task status: :environment do
     puts "=== ECPay E2E Status ==="
 
-    provider = PaymentProviders::EcpayProvider.find_by(sandbox: "true")
+    provider = PaymentProviders::EcpayProvider.find_by(code: "ecpay_sandbox")
     unless provider
       puts "  No sandbox EcpayProvider found. Run `rake ecpay:setup_e2e` first."
       exit 0

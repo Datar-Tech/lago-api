@@ -50,7 +50,7 @@ module PaymentProviders
           )
 
           response = http_client.post_with_response(
-            request_body.to_json,
+            request_body,
             {"Content-Type" => "application/json"}
           )
 

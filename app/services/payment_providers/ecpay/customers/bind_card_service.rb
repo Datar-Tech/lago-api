@@ -19,21 +19,23 @@ module PaymentProviders
           ecpay_customer.update!(merchant_member_id: merchant_member_id)
 
           data = {
+            PlatformID: "",
             MerchantID: payment_provider.merchant_id,
-            MerchantMemberID: merchant_member_id,
-            OrderInfo: {
-              MerchantTradeNo: generate_trade_no("BND"),
-              MerchantTradeDate: taiwan_datetime_now,
-              TotalAmount: 0,
-              ReturnURL: bind_card_return_url,
-              TradeDesc: "VelaOrdo 綁定信用卡"
-            },
-            CardInfo: {},
             ConsumerInfo: {
               MerchantMemberID: merchant_member_id,
-              Email: customer.email,
+              Email: customer.email.presence || "noreply@velaordo.com",
               Phone: customer.phone.presence || ""
-            }
+            },
+            OrderInfo: {
+              MerchantTradeDate: taiwan_datetime_now,
+              MerchantTradeNo: generate_trade_no("BND"),
+              TotalAmount: "100",
+              TradeDesc: "VelaOrdo Bind Card",
+              ItemName: "Card Binding",
+              ReturnURL: bind_card_return_url
+            },
+            OrderResultURL: bind_card_order_result_url,
+            CustomField: ""
           }
 
           request_body = Lago::EcpayAes.build_request(
@@ -42,7 +44,7 @@ module PaymentProviders
           )
 
           response = http_client.post_with_response(
-            request_body.to_json,
+            request_body,
             {"Content-Type" => "application/json"}
           )
 
@@ -79,6 +81,11 @@ module PaymentProviders
         end
 
         def bind_card_return_url
+          base = ENV.fetch("ECPAY_ORDER_RESULT_URL_BASE", "https://api.velaordo.com/ecpay/card_bindings")
+          "#{base}/#{payment_provider.organization_id}/callback"
+        end
+
+        def bind_card_order_result_url
           base = ENV.fetch("ECPAY_ORDER_RESULT_URL_BASE", "https://api.velaordo.com/ecpay/card_bindings")
           "#{base}/#{payment_provider.organization_id}/callback"
         end
