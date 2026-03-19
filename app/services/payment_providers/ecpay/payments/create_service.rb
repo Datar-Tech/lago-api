@@ -26,22 +26,23 @@ module PaymentProviders
           end
 
           data = {
+            PlatformID: "",
             MerchantID: ecpay_provider.merchant_id,
-            MerchantMemberID: provider_customer.merchant_member_id,
+            BindCardID: provider_customer.card_id,
             OrderInfo: {
-              MerchantTradeNo: generate_trade_no("INV"),
               MerchantTradeDate: taiwan_datetime_now,
+              MerchantTradeNo: generate_trade_no("INV"),
               TotalAmount: amount_ntd,
               ReturnURL: payment_return_url,
-              TradeDesc: "VelaOrdo #{invoice.number}",
-              ItemName: "VelaOrdo 訂閱扣款"
+              TradeDesc: "VelaOrdo Subscription",
+              ItemName: "VelaOrdo #{invoice.number}"
             },
-            CardInfo: {BindCardID: provider_customer.card_id},
             ConsumerInfo: {
               MerchantMemberID: provider_customer.merchant_member_id,
               Email: customer.email,
               Phone: customer.phone.presence || ""
-            }
+            },
+            CustomField: ""
           }
 
           request_body = Lago::EcpayAes.build_request(
@@ -87,9 +88,14 @@ module PaymentProviders
         end
 
         def amount_ntd
-          # TWD integer, ceil rounding
-          # TODO: implement proper USD → NTD exchange rate
-          (invoice.total_due_amount_cents / 100.0 * 32).ceil
+          if invoice.currency == "TWD"
+            # TWD: amount_cents is already in TWD sub-units
+            [invoice.total_due_amount_cents, 1].max
+          else
+            # USD → NTD conversion, ceil rounding
+            rate = ENV.fetch("USD_TO_NTD_RATE", "32").to_f
+            [(invoice.total_due_amount_cents / 100.0 * rate).ceil, 1].max
+          end
         end
 
         def taiwan_datetime_now
