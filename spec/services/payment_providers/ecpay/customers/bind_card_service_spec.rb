@@ -83,11 +83,10 @@ RSpec.describe PaymentProviders::Ecpay::Customers::BindCardService do
       it "sends correct request structure" do
         service.call
 
-        expect(lago_client).to have_received(:post_with_response) do |body_json, headers|
-          body = JSON.parse(body_json)
-          expect(body).to have_key("MerchantID")
-          expect(body).to have_key("RqHeader")
-          expect(body).to have_key("Data")
+        expect(lago_client).to have_received(:post_with_response) do |body, headers|
+          expect(body).to have_key(:MerchantID)
+          expect(body).to have_key(:RqHeader)
+          expect(body).to have_key(:Data)
           expect(headers["Content-Type"]).to eq("application/json")
         end
       end
@@ -130,9 +129,8 @@ RSpec.describe PaymentProviders::Ecpay::Customers::BindCardService do
       it "generates a trade number with BND prefix and max 20 chars" do
         service.call
 
-        expect(lago_client).to have_received(:post_with_response) do |body_json, _|
-          body = JSON.parse(body_json)
-          data_json = Lago::EcpayAes.decrypt(body["Data"], payment_provider.hash_key, payment_provider.hash_iv)
+        expect(lago_client).to have_received(:post_with_response) do |body, _|
+          data_json = Lago::EcpayAes.decrypt(body[:Data], payment_provider.hash_key, payment_provider.hash_iv)
           data = JSON.parse(data_json)
           trade_no = data["OrderInfo"]["MerchantTradeNo"]
           expect(trade_no).to start_with("BND")

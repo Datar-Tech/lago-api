@@ -216,6 +216,8 @@ class Organization < ApplicationRecord
       cashfree_payment_provider
     when "adyen"
       adyen_payment_provider
+    when "ecpay"
+      ecpay_payment_provider
     end
   end
 

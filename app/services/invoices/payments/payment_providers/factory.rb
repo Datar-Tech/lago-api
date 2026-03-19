@@ -22,6 +22,8 @@ module Invoices
             Invoices::Payments::FlutterwaveService
           when "moneyhash"
             Invoices::Payments::MoneyhashService
+          when "ecpay"
+            Invoices::Payments::EcpayService
           else
             raise(NotImplementedError)
           end

@@ -74,6 +74,7 @@ module Types
 
     field :add_adyen_payment_provider, mutation: Mutations::PaymentProviders::Adyen::Create
     field :add_cashfree_payment_provider, mutation: Mutations::PaymentProviders::Cashfree::Create
+    field :add_ecpay_payment_provider, mutation: Mutations::PaymentProviders::Ecpay::Create
     field :add_flutterwave_payment_provider, mutation: Mutations::PaymentProviders::Flutterwave::Create
     field :add_gocardless_payment_provider, mutation: Mutations::PaymentProviders::Gocardless::Create
     field :add_moneyhash_payment_provider, mutation: Mutations::PaymentProviders::Moneyhash::Create
@@ -81,6 +82,7 @@ module Types
 
     field :update_adyen_payment_provider, mutation: Mutations::PaymentProviders::Adyen::Update
     field :update_cashfree_payment_provider, mutation: Mutations::PaymentProviders::Cashfree::Update
+    field :update_ecpay_payment_provider, mutation: Mutations::PaymentProviders::Ecpay::Update
     field :update_flutterwave_payment_provider, mutation: Mutations::PaymentProviders::Flutterwave::Update
     field :update_gocardless_payment_provider, mutation: Mutations::PaymentProviders::Gocardless::Update
     field :update_moneyhash_payment_provider, mutation: Mutations::PaymentProviders::Moneyhash::Update

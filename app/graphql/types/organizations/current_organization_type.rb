@@ -50,6 +50,7 @@ module Types
 
       field :adyen_payment_providers, [Types::PaymentProviders::Adyen], permission: "organization:integrations:view"
       field :cashfree_payment_providers, [Types::PaymentProviders::Cashfree], permission: "organization:integrations:view"
+      field :ecpay_payment_providers, [Types::PaymentProviders::Ecpay], permission: "organization:integrations:view"
       field :gocardless_payment_providers, [Types::PaymentProviders::Gocardless], permission: "organization:integrations:view"
       field :stripe_payment_providers, [Types::PaymentProviders::Stripe], permission: "organization:integrations:view"
 

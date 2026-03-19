@@ -103,9 +103,8 @@ RSpec.describe PaymentProviders::Ecpay::Payments::CreateService do
       it "sends correct request with BindCardID" do
         described_class.call(payment:, reference:, metadata:)
 
-        expect(lago_client).to have_received(:post_with_response) do |body_json, headers|
-          body = JSON.parse(body_json)
-          data_json = Lago::EcpayAes.decrypt(body["Data"], ecpay_provider.hash_key, ecpay_provider.hash_iv)
+        expect(lago_client).to have_received(:post_with_response) do |body, headers|
+          data_json = Lago::EcpayAes.decrypt(body[:Data], ecpay_provider.hash_key, ecpay_provider.hash_iv)
           data = JSON.parse(data_json)
           expect(data["CardInfo"]["BindCardID"]).to eq("BIND123456")
           expect(data["OrderInfo"]["TotalAmount"]).to be_a(Integer)
