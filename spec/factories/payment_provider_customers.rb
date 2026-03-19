@@ -36,6 +36,30 @@ FactoryBot.define do
 
     provider_customer_id { SecureRandom.uuid }
   end
+  factory :ecpay_customer, class: "PaymentProviderCustomers::EcpayCustomer" do
+    customer
+    organization { customer.organization }
+    payment_provider { association(:ecpay_provider, organization: organization) }
+
+    settings do
+      {
+        merchant_member_id: merchant_member_id,
+        card_id: card_id,
+        card_last_four: card_last_four,
+        card_first_six: card_first_six,
+        card_type: card_type
+      }.compact
+    end
+
+    transient do
+      merchant_member_id { "MEM#{SecureRandom.hex(8)}" }
+      card_id { nil }
+      card_last_four { nil }
+      card_first_six { nil }
+      card_type { nil }
+    end
+  end
+
   factory :flutterwave_customer, class: "PaymentProviderCustomers::FlutterwaveCustomer" do
     customer
     organization { customer.organization }
